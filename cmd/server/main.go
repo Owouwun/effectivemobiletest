@@ -63,6 +63,10 @@ func main() {
 }
 
 func BuildDBConnFromConfig() (string, error) {
+	conn := os.Getenv("DATABASE_CONN")
+	if conn != "" {
+		return conn, nil
+	}
 	user := os.Getenv("POSTGRES_USER")
 	pass := os.Getenv("POSTGRES_PASSWORD")
 	host := os.Getenv("DB_HOST")
@@ -71,7 +75,7 @@ func BuildDBConnFromConfig() (string, error) {
 		return "", fmt.Errorf("missing DB secret envs")
 	}
 
-	conn := fmt.Sprintf("postgres://%s:%s@%s:5432/%s?sslmode=disable", user, pass, host, dbName)
+	conn = fmt.Sprintf("postgres://%s:%s@%s:5432/%s?sslmode=disable", user, pass, host, dbName)
 	return conn, nil
 }
 
