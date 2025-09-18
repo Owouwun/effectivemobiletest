@@ -157,7 +157,7 @@ type UpdateRequest struct {
 // @Failure      400           {object} map[string]any    "Invalid request body or malformed data"
 // @Failure      404           {object} map[string]any    "Service not found"
 // @Failure      500           {object} map[string]any    "Internal server error"
-// @Router       /{service_name} [put]
+// @Router       /{service_name} [patch]
 func (h *SubscriptionHandler) UpdateService(c *gin.Context) {
 	srvName := c.Param("service_name")
 
