@@ -21,6 +21,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 const (
@@ -84,8 +85,19 @@ func prepareDB() *gorm.DB {
 
 	runMigrations(dbConn)
 
+	newLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold: time.Second,
+			LogLevel:      logger.Info,
+			Colorful:      true,
+		},
+	)
+
 	log.Println("Connecting to the PostgreSQL database...")
-	db, err := gorm.Open(postgres.Open(dbConn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dbConn), &gorm.Config{
+		Logger: newLogger,
+	})
 	if err != nil {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}

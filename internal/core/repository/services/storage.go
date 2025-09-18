@@ -28,7 +28,6 @@ func (r *GormServiceRepository) GetService(ctx context.Context, serviceName stri
 	var serviceEntity *entities.ServiceEntity
 	result := r.db.WithContext(ctx).
 		First(&serviceEntity, "service_name = ?", serviceName)
-
 	if result.Error != nil {
 		return nil, services.ErrNotFound
 	}
