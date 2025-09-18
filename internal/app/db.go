@@ -67,6 +67,10 @@ func runMigrations(dbConn string) error {
 	}
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		if err == migrate.ErrNoChange {
+			log.Println("Nothing to migrate for database")
+			return nil
+		}
 		return err
 	}
 	log.Println("Database migrations applied successfully!")
