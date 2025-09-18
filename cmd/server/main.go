@@ -1,187 +1,50 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	_ "github.com/Owouwun/effectivemobiletest/cmd/docs"
+	"github.com/Owouwun/effectivemobiletest/internal/app"
 
-	"github.com/Owouwun/effectivemobiletest/internal/core/api/handlers"
-	"github.com/Owouwun/effectivemobiletest/internal/core/logic/services"
-	repository_services "github.com/Owouwun/effectivemobiletest/internal/core/repository/services"
-	"github.com/gin-gonic/gin"
-	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres" // Postgres migration
-	_ "github.com/golang-migrate/migrate/v4/source/file"       // Migrations from file
-	_ "github.com/lib/pq"                                      // Register Postgres driver
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
-)
-
-const (
-	dbConnectionTimeout = 30 * time.Second
 )
 
 // @title           Effective Mobile Test Assignment
 // @version         1.0
 // @description     This is a test assignment for Effective Mobile team.
-
-// @contact.name   Ivan Kuznetsov
-// @contact.email  kuznetsovivangio@gmail.com
-
-// @host      localhost:8080
-// @BasePath  /service
+// @contact.name    Ivan Kuznetsov
+// @contact.email   kuznetsovivangio@gmail.com
+// @host            localhost:8080
+// @BasePath        /service
 
 func main() {
-	dbConn, err := BuildDBConnFromConfig()
+	dbConn, err := app.BuildDBConnFromConfig()
 	if err != nil {
-		log.Fatal("Failed to build connection string to database:", err)
+		log.Fatalf("Failed to build DB connection string: %v", err)
 	}
 
-	log.Println("Preparing database")
-	db := prepareDB(dbConn)
+	db, err := app.PrepareDB(dbConn)
+	if err != nil {
+		log.Fatalf("Failed to prepare database: %v", err)
+	}
 
-	log.Println("Prepating routers")
-	router := prepareRouter(db)
+	router := app.PrepareRouter(db)
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	appPort := os.Getenv("APP_PORT")
 	if appPort == "" {
-		log.Fatal("Missing app port env variable")
+		appPort = "8080"
+		log.Printf("APP_PORT not set, using default: %s", appPort)
 	}
 
 	log.Printf("Starting server on :%s", appPort)
 	if err := router.Run(fmt.Sprintf(":%s", appPort)); err != nil {
-		log.Fatal("Server failed to start:", err)
-	}
-}
-
-func BuildDBConnFromConfig() (string, error) {
-	conn := os.Getenv("DATABASE_CONN")
-	if conn != "" {
-		return conn, nil
-	}
-	user := os.Getenv("POSTGRES_USER")
-	pass := os.Getenv("POSTGRES_PASSWORD")
-	host := os.Getenv("DB_HOST")
-	dbName := os.Getenv("POSTGRES_DB")
-	if user == "" || pass == "" || host == "" || dbName == "" {
-		return "", fmt.Errorf("missing DB secret envs")
-	}
-
-	conn = fmt.Sprintf("postgres://%s:%s@%s:5432/%s?sslmode=disable", user, pass, host, dbName)
-	return conn, nil
-}
-
-func prepareRouter(db *gorm.DB) *gin.Engine {
-	router := gin.Default()
-
-	serviceRepo := repository_services.NewServiceRepository(db)
-	subscriptionService := services.NewSubscriptionService(serviceRepo)
-	subscriptionHandler := handlers.NewSubscriptionHandler(subscriptionService)
-
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-
-	apiOrders := router.Group("/service")
-	{
-		apiOrders.POST("", subscriptionHandler.CreateService)
-		apiOrders.GET("/:service_name", subscriptionHandler.GetService)
-		apiOrders.GET("", subscriptionHandler.GetServices)
-		apiOrders.PATCH("/:service_name", subscriptionHandler.UpdateService)
-		apiOrders.DELETE("/:service_name", subscriptionHandler.DeleteService)
-		apiOrders.GET("/cumulate", subscriptionHandler.CumulateServices)
-	}
-
-	return router
-}
-
-func prepareDB(dbConn string) *gorm.DB {
-	ctx, cancel := context.WithTimeout(context.Background(), dbConnectionTimeout)
-	defer cancel()
-
-	if err := waitForDBReady(ctx, dbConn); err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
-	}
-
-	runMigrations(dbConn)
-
-	newLogger := logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags),
-		logger.Config{
-			SlowThreshold: time.Second,
-			LogLevel:      logger.Info,
-			Colorful:      true,
-		},
-	)
-
-	log.Println("Connecting to the PostgreSQL database...")
-	db, err := gorm.Open(postgres.Open(dbConn), &gorm.Config{
-		Logger: newLogger,
-	})
-	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
-	}
-
-	return db
-}
-
-func runMigrations(dbConn string) {
-	log.Println("Running database migrations...")
-
-	m, err := migrate.New(
-		"file://migrations",
-		dbConn,
-	)
-	if err != nil {
-		log.Fatalf("Failed to create migrate instance: %v", err)
-	}
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		log.Fatalf("Failed to run migrations: %v", err)
-	}
-
-	log.Println("Database migrations applied successfully!")
-}
-
-func waitForDBReady(ctx context.Context, dbConn string) error {
-	log.Println("Waiting for database to be ready...")
-
-	done := make(chan error)
-
-	go func() {
-		for {
-			db, err := sql.Open("postgres", dbConn)
-			if err != nil {
-				done <- err
-				return
-			}
-			defer func() {
-				err := db.Close()
-				if err != nil {
-					log.Fatal(err)
-				}
-			}()
-
-			if err := db.Ping(); err == nil {
-				done <- nil
-				return
-			}
-
-			// Wait till the next try
-			time.Sleep(100 * time.Millisecond)
-		}
-	}()
-
-	select {
-	case err := <-done:
-		return err
-	case <-ctx.Done(): // Timeout
-		return ctx.Err()
+		log.Fatalf("Server failed to start: %v", err)
 	}
 }
