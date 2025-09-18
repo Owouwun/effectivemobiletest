@@ -15,10 +15,10 @@ const dateLayout = "01-2006"
 
 type SubscriptionService interface {
 	CreateService(ctx context.Context, srv *services.Service) error
-	GetService(ctx context.Context, serviceName string) (*services.Service, error)
+	GetService(ctx context.Context, ID uuid.UUID) (*services.Service, error)
 	GetServices(ctx context.Context) ([]*services.Service, error)
 	UpdateService(ctx context.Context, srv *services.Service) error
-	DeleteService(ctx context.Context, serviceName string) error
+	DeleteService(ctx context.Context, ID uuid.UUID) error
 	CumulateServices(ctx context.Context, filters *services.Filters) (int, error)
 }
 
@@ -97,15 +97,20 @@ func (h *SubscriptionHandler) CreateService(c *gin.Context) {
 // @Tags         services
 // @Accept       json
 // @Produce      json
-// @Param        service_name  path  string  true  "Name of the service to retrieve" example:"My Service"
+// @Param        ID  path  string  true  "UUID of the service to retrieve" example:"123e4567-e89b-12d3-a456-426614174009"
 // @Success      200  {object}  services.Service  "Successfully retrieved service"
+// @Failure      400  {object}  map[string]any    "Invalid UUID"
 // @Failure      404  {object}  map[string]any    "Service not found"
 // @Failure      500  {object}  map[string]any    "Internal server error"
-// @Router       /{service_name} [get]
+// @Router       /{id} [get]
 func (h *SubscriptionHandler) GetService(c *gin.Context) {
-	name := c.Param("service_name")
+	ID, err := uuid.Parse(c.Param("ID"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid uuid"})
+		return
+	}
 
-	srv, err := h.subscriptionService.GetService(c, name)
+	srv, err := h.subscriptionService.GetService(c, ID)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
@@ -139,10 +144,11 @@ func (h *SubscriptionHandler) GetServices(c *gin.Context) {
 }
 
 type UpdateRequest struct {
-	Price     *int       `json:"price,omitempty" example:"500"`
-	UserID    *uuid.UUID `json:"user_id,omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`
-	StartDate *time.Time `json:"start_date,omitempty" example:"01-2024"`
-	EndDate   *time.Time `json:"end_date,omitempty" example:"12-2025"`
+	ServiceName *string    `json:"service_name,omitempty" example:"My Service"`
+	Price       *int       `json:"price,omitempty" example:"500"`
+	UserID      *uuid.UUID `json:"user_id,omitempty" example:"123e4567-e89b-12d3-a456-426614174000"`
+	StartDate   *time.Time `json:"start_date,omitempty" example:"01-2024"`
+	EndDate     *time.Time `json:"end_date,omitempty" example:"12-2025"`
 }
 
 // UpdateService godoc
@@ -151,15 +157,19 @@ type UpdateRequest struct {
 // @Tags         services
 // @Accept       json
 // @Produce      json
-// @Param        service_name  path  string         true  "Name of the service to update" example:"My Service"
+// @Param        ID  		   path  string         true  "UUID of the service to update" example:"123e4567-e89b-12d3-a456-426614174009"
 // @Param        request       body  UpdateRequest  true  "Request update service with optional fields"
 // @Success      200           {object} services.Service  "Successfully updated the service"
-// @Failure      400           {object} map[string]any    "Invalid request body or malformed data"
+// @Failure      400           {object} map[string]any    "Invalid UUID or request body or malformed data"
 // @Failure      404           {object} map[string]any    "Service not found"
 // @Failure      500           {object} map[string]any    "Internal server error"
-// @Router       /{service_name} [patch]
+// @Router       /{id} [patch]
 func (h *SubscriptionHandler) UpdateService(c *gin.Context) {
-	srvName := c.Param("service_name")
+	ID, err := uuid.Parse(c.Param("ID"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid UUID"})
+		return
+	}
 
 	var req UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -167,7 +177,10 @@ func (h *SubscriptionHandler) UpdateService(c *gin.Context) {
 		return
 	}
 
-	updatedSrv := &services.Service{ServiceName: srvName}
+	updatedSrv := &services.Service{ID: &ID}
+	if req.ServiceName != nil {
+		updatedSrv.ServiceName = *req.ServiceName
+	}
 	if req.Price != nil {
 		updatedSrv.Price = *req.Price
 	}
@@ -200,16 +213,20 @@ func (h *SubscriptionHandler) UpdateService(c *gin.Context) {
 // @Tags         services
 // @Accept       json
 // @Produce      json
-// @Param        service_name  path  string         true  "Name of the service to delete" example:"My Service"
+// @Param        ID  		   path  string         true  "UUID of the service to delete" example:"123e4567-e89b-12d3-a456-426614174009"
 // @Success      204           "Successfully deleted the service"
+// @Failure      400           {object} map[string]any    "Invalid UUID"
 // @Failure      404           {object} map[string]any    "Service not found"
 // @Failure      500           {object} map[string]any    "Internal server error"
-// @Router       /{service_name} [delete]
+// @Router       /{id} [delete]
 func (h *SubscriptionHandler) DeleteService(c *gin.Context) {
-	srvName := c.Param("service_name")
-
-	err := h.subscriptionService.DeleteService(c, srvName)
+	ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid UUID"})
+		return
+	}
+
+	if err = h.subscriptionService.DeleteService(c, ID); err != nil {
 		if errors.Is(err, services.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
 			return

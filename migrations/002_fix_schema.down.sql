@@ -1,4 +1,4 @@
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+DROP TABLE IF EXISTS services;
 
 CREATE TABLE IF NOT EXISTS services (
     service_name TEXT PRIMARY KEY,

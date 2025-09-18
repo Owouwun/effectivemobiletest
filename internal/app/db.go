@@ -74,12 +74,10 @@ func runMigrations(dbConn string) error {
 	migrationsPath := "file://" + filepath.Join(wd, "migrations")
 	log.Printf("Running database migrations; migrationsPath=%s migrationsTable=%s\n", migrationsPath, migrationsTable)
 
-	// открываем sql.DB, затем создаём драйвер с кастомной таблицей
 	sqlDB, err := sql.Open("postgres", dbConn)
 	if err != nil {
 		return fmt.Errorf("sql.Open failed: %w", err)
 	}
-	// не закрываем sqlDB до конца функции
 	defer sqlDB.Close()
 
 	cfg := &postgres.Config{

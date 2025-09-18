@@ -8,6 +8,7 @@ import (
 )
 
 type Service struct {
+	ID          *uuid.UUID `json:"id,omitempty" example:"123e4567-e89b-12d3-a456-426614174009"`
 	ServiceName string     `json:"service_name" example:"My Service"`
 	Price       int        `json:"price" example:"500"`
 	UserID      uuid.UUID  `json:"user_id" example:"123e4567-e89b-12d3-a456-426614174000"`

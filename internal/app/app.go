@@ -62,10 +62,10 @@ func PrepareRouter(db *gorm.DB) *gin.Engine {
 	apiOrders := router.Group("/service")
 	{
 		apiOrders.POST("", subscriptionHandler.CreateService)
-		apiOrders.GET("/:service_name", subscriptionHandler.GetService)
+		apiOrders.GET("/:id", subscriptionHandler.GetService)
 		apiOrders.GET("", subscriptionHandler.GetServices)
-		apiOrders.PATCH("/:service_name", subscriptionHandler.UpdateService)
-		apiOrders.DELETE("/:service_name", subscriptionHandler.DeleteService)
+		apiOrders.PATCH("/:id", subscriptionHandler.UpdateService)
+		apiOrders.DELETE("/:id", subscriptionHandler.DeleteService)
 		apiOrders.GET("/cumulate", subscriptionHandler.CumulateServices)
 	}
 

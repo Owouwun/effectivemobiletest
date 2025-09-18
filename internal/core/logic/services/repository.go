@@ -3,14 +3,16 @@ package services
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type SubscriptionRepository interface {
 	CreateService(ctx context.Context, srv *Service) error
-	GetService(ctx context.Context, serviceName string) (*Service, error)
+	GetService(ctx context.Context, ID uuid.UUID) (*Service, error)
 	GetServices(ctx context.Context) ([]*Service, error)
 	UpdateService(ctx context.Context, srv *Service) error
-	DeleteService(ctx context.Context, serviceName string) error
+	DeleteService(ctx context.Context, ID uuid.UUID) error
 	FilterServices(ctx context.Context, filters *Filters) ([]*Service, error)
 }
 
@@ -28,8 +30,8 @@ func (s *SubscriptionService) CreateService(ctx context.Context, srv *Service) e
 	return s.repo.CreateService(ctx, srv)
 }
 
-func (s *SubscriptionService) GetService(ctx context.Context, serviceName string) (*Service, error) {
-	return s.repo.GetService(ctx, serviceName)
+func (s *SubscriptionService) GetService(ctx context.Context, ID uuid.UUID) (*Service, error) {
+	return s.repo.GetService(ctx, ID)
 }
 
 func (s *SubscriptionService) GetServices(ctx context.Context) ([]*Service, error) {
@@ -40,8 +42,8 @@ func (s *SubscriptionService) UpdateService(ctx context.Context, srv *Service) e
 	return s.repo.UpdateService(ctx, srv)
 }
 
-func (s *SubscriptionService) DeleteService(ctx context.Context, serviceName string) error {
-	return s.repo.DeleteService(ctx, serviceName)
+func (s *SubscriptionService) DeleteService(ctx context.Context, ID uuid.UUID) error {
+	return s.repo.DeleteService(ctx, ID)
 }
 
 func minDate(date1 time.Time, date2 time.Time) time.Time {

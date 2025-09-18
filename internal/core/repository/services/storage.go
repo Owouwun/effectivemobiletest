@@ -5,6 +5,7 @@ import (
 
 	"github.com/Owouwun/effectivemobiletest/internal/core/logic/services"
 	"github.com/Owouwun/effectivemobiletest/internal/core/repository/entities"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -24,10 +25,10 @@ func (r *GormServiceRepository) CreateService(ctx context.Context, srv *services
 	return result.Error
 }
 
-func (r *GormServiceRepository) GetService(ctx context.Context, serviceName string) (*services.Service, error) {
+func (r *GormServiceRepository) GetService(ctx context.Context, ID uuid.UUID) (*services.Service, error) {
 	var serviceEntity *entities.ServiceEntity
 	result := r.db.WithContext(ctx).
-		First(&serviceEntity, "service_name = ?", serviceName)
+		First(&serviceEntity, "ID = ?", ID)
 	if result.Error != nil {
 		return nil, services.ErrNotFound
 	}
@@ -56,7 +57,7 @@ func (r *GormServiceRepository) UpdateService(ctx context.Context, srv *services
 
 	result := r.db.WithContext(ctx).
 		Model(&serviceEntity).
-		Where("service_name = ?", srv.ServiceName).
+		Where("ID = ?", srv.ID).
 		Updates(serviceEntity)
 	if result.Error != nil {
 		return result.Error
@@ -68,10 +69,10 @@ func (r *GormServiceRepository) UpdateService(ctx context.Context, srv *services
 	return nil
 }
 
-func (r *GormServiceRepository) DeleteService(ctx context.Context, serviceName string) error {
+func (r *GormServiceRepository) DeleteService(ctx context.Context, ID uuid.UUID) error {
 	result := r.db.WithContext(ctx).
 		Delete(&entities.ServiceEntity{}).
-		Where("service_name = ?", serviceName)
+		Where("ID = ?", ID)
 	if result.Error != nil {
 		return result.Error
 	}

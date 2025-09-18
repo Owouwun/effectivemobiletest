@@ -1,7 +1,8 @@
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+DROP TABLE IF EXISTS services;
 
-CREATE TABLE IF NOT EXISTS services (
-    service_name TEXT PRIMARY KEY,
+CREATE TABLE services (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_name TEXT,
     price INT NOT NULL,
     user_id UUID NOT NULL,
     start_date DATE NOT NULL,
