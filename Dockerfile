@@ -7,6 +7,7 @@ RUN go mod download
 
 COPY ./cmd/server ./cmd/server
 COPY ./internal ./internal
+COPY ./migrations ./migrations
 
 RUN go install github.com/swaggo/swag/cmd/swag@latest
 
@@ -22,7 +23,7 @@ WORKDIR /app
 
 COPY --from=builder /app/main .
 COPY --from=builder /app/cmd/docs ./cmd/docs
-COPY ./migrations ./migrations
+COPY --from=builder /app/migrations ./migrations
 
 EXPOSE 8080
 

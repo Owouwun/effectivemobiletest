@@ -3,12 +3,15 @@ package app
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
-	"gorm.io/driver/postgres"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	gorm_postgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -50,29 +53,78 @@ func connectToDB(dbConn string) (*gorm.DB, error) {
 			Colorful:      true,
 		},
 	)
-	db, err := gorm.Open(postgres.Open(dbConn), &gorm.Config{
+	db, err := gorm.Open(gorm_postgres.Open(dbConn), &gorm.Config{
 		Logger: newLogger,
 	})
 	if err != nil {
 		return nil, err
 	}
+
+	log.Println("Successful connection to the database!")
 	return db, nil
 }
 
 func runMigrations(dbConn string) error {
-	log.Println("Running database migrations...")
-	m, err := migrate.New("file://migrations", dbConn)
-	if err != nil {
-		return err
+	migrationsTable := os.Getenv("MIGRATIONS_TABLE")
+	if migrationsTable == "" {
+		migrationsTable = "schema_migrations_effectivemobiletest"
 	}
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		if err == migrate.ErrNoChange {
-			log.Println("Nothing to migrate for database")
-			return nil
-		}
-		return err
+	wd, _ := os.Getwd()
+	migrationsPath := "file://" + filepath.Join(wd, "migrations")
+	log.Printf("Running database migrations; migrationsPath=%s migrationsTable=%s\n", migrationsPath, migrationsTable)
+
+	// открываем sql.DB, затем создаём драйвер с кастомной таблицей
+	sqlDB, err := sql.Open("postgres", dbConn)
+	if err != nil {
+		return fmt.Errorf("sql.Open failed: %w", err)
 	}
-	log.Println("Database migrations applied successfully!")
+	// не закрываем sqlDB до конца функции
+	defer sqlDB.Close()
+
+	cfg := &postgres.Config{
+		MigrationsTable: migrationsTable,
+	}
+
+	driver, err := postgres.WithInstance(sqlDB, cfg)
+	if err != nil {
+		return fmt.Errorf("postgres.WithInstance failed: %w", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(migrationsPath, "postgres", driver)
+	if err != nil {
+		return fmt.Errorf("migrate.NewWithDatabaseInstance failed: %w", err)
+	}
+	defer func() {
+		_, _ = m.Close()
+	}()
+
+	if err := m.Up(); err != nil {
+		if err == migrate.ErrNoChange {
+			log.Println("Migrations: no change (already up-to-date)")
+		} else {
+			return fmt.Errorf("m.Up failed: %w", err)
+		}
+	} else {
+		log.Println("Migrations applied successfully!")
+	}
+
+	if v, dirty, err := m.Version(); err == nil {
+		log.Printf("migration version=%d dirty=%v\n", v, dirty)
+	} else {
+		rows, err := sqlDB.Query(fmt.Sprintf("SELECT version FROM %s ORDER BY version", migrationsTable))
+		if err == nil {
+			log.Println("Applied migration versions:")
+			for rows.Next() {
+				var vv string
+				_ = rows.Scan(&vv)
+				log.Println(" -", vv)
+			}
+			rows.Close()
+		} else {
+			log.Printf("can't read %s: %v", migrationsTable, err)
+		}
+	}
+
 	return nil
 }
