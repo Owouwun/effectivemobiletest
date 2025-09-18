@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -39,13 +40,39 @@ const (
 // @BasePath  /service
 
 func main() {
-	db := prepareDB()
+	dbConn, err := BuildDBConnFromConfig()
+	if err != nil {
+		log.Fatal("Failed to build connection string to database:", err)
+	}
+
+	log.Println("Preparing database")
+	db := prepareDB(dbConn)
+
+	log.Println("Prepating routers")
 	router := prepareRouter(db)
 
-	log.Println("Starting server on :8080")
-	if err := router.Run(":8080"); err != nil {
+	appPort := os.Getenv("APP_PORT")
+	if appPort == "" {
+		log.Fatal("Missing app port env variable")
+	}
+
+	log.Printf("Starting server on :%s", appPort)
+	if err := router.Run(fmt.Sprintf(":%s", appPort)); err != nil {
 		log.Fatal("Server failed to start:", err)
 	}
+}
+
+func BuildDBConnFromConfig() (string, error) {
+	user := os.Getenv("POSTGRES_USER")
+	pass := os.Getenv("POSTGRES_PASSWORD")
+	host := os.Getenv("DB_HOST")
+	dbName := os.Getenv("POSTGRES_DB")
+	if user == "" || pass == "" || host == "" || dbName == "" {
+		return "", fmt.Errorf("missing DB secret envs")
+	}
+
+	conn := fmt.Sprintf("postgres://%s:%s@%s:5432/%s?sslmode=disable", user, pass, host, dbName)
+	return conn, nil
 }
 
 func prepareRouter(db *gorm.DB) *gin.Engine {
@@ -70,12 +97,7 @@ func prepareRouter(db *gorm.DB) *gin.Engine {
 	return router
 }
 
-func prepareDB() *gorm.DB {
-	dbConn := os.Getenv("DATABASE_CONN")
-	if dbConn == "" {
-		log.Fatal("DATABASE_CONN environment variable is not set")
-	}
-
+func prepareDB(dbConn string) *gorm.DB {
 	ctx, cancel := context.WithTimeout(context.Background(), dbConnectionTimeout)
 	defer cancel()
 
@@ -109,7 +131,7 @@ func runMigrations(dbConn string) {
 	log.Println("Running database migrations...")
 
 	m, err := migrate.New(
-		"file://migrations", // Путь к папке с миграциями
+		"file://migrations",
 		dbConn,
 	)
 	if err != nil {
