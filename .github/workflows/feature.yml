@@ -6,12 +6,13 @@ jobs:
   golangci:
     name: lint
     runs-on: ubuntu-latest
+    
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v5
         with:
           go-version: stable
+      - name: Generate swagger docs
+        run: go install github.com/swaggo/swag/cmd/swag@latest && swag init -g ./cmd/server/main.go -o cmd/docs
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.1
