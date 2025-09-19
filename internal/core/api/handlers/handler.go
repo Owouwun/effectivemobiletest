@@ -177,7 +177,7 @@ func (h *SubscriptionHandler) UpdateService(c *gin.Context) {
 		return
 	}
 
-	updatedSrv := &services.Service{ID: &ID}
+	updatedSrv := &services.Service{ID: ID}
 	if req.ServiceName != nil {
 		updatedSrv.ServiceName = *req.ServiceName
 	}

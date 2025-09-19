@@ -22,7 +22,7 @@ func (ServiceEntity) TableName() string {
 
 func NewServiceEntityFromLogic(s *services.Service) *ServiceEntity {
 	return &ServiceEntity{
-		ID:          *s.ID,
+		ID:          s.ID,
 		ServiceName: s.ServiceName,
 		Price:       s.Price,
 		UserID:      s.UserID,
@@ -33,7 +33,7 @@ func NewServiceEntityFromLogic(s *services.Service) *ServiceEntity {
 
 func (se *ServiceEntity) ToLogicService() *services.Service {
 	return &services.Service{
-		ID:          &se.ID,
+		ID:          se.ID,
 		ServiceName: se.ServiceName,
 		Price:       se.Price,
 		UserID:      se.UserID,

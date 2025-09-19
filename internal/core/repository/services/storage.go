@@ -21,8 +21,13 @@ func (r *GormServiceRepository) CreateService(ctx context.Context, srv *services
 	serviceEntity := entities.NewServiceEntityFromLogic(srv)
 
 	result := r.db.WithContext(ctx).Create(&serviceEntity)
+	if result.Error != nil {
+		return result.Error
+	}
 
-	return result.Error
+	*srv = *serviceEntity.ToLogicService()
+
+	return nil
 }
 
 func (r *GormServiceRepository) GetService(ctx context.Context, ID uuid.UUID) (*services.Service, error) {
@@ -65,6 +70,8 @@ func (r *GormServiceRepository) UpdateService(ctx context.Context, srv *services
 	if result.RowsAffected == 0 {
 		return services.ErrNotFound
 	}
+
+	*srv = *serviceEntity.ToLogicService()
 
 	return nil
 }
