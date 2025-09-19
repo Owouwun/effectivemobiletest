@@ -92,11 +92,17 @@ func (r *GormServiceRepository) DeleteService(ctx context.Context, ID uuid.UUID)
 
 func (r *GormServiceRepository) FilterServices(ctx context.Context, filters *services.Filters) ([]*services.Service, error) {
 	var filteredEntities []entities.ServiceEntity
-	result := r.db.WithContext(ctx).
-		Find(&filteredEntities).
-		Where("service_name IN ?", filters.SrvNames).
-		Where("user_id IN ?", filters.UserIDs)
+	db := r.db.WithContext(ctx)
 
+	if len(filters.SrvNames) > 0 {
+		db = db.Where("service_name IN ?", filters.SrvNames)
+	}
+
+	if len(filters.UserIDs) > 0 {
+		db = db.Where("user_id IN ?", filters.UserIDs)
+	}
+
+	result := db.Find(&filteredEntities)
 	if result.Error != nil {
 		return nil, result.Error
 	}

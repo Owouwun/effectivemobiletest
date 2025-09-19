@@ -16,8 +16,8 @@ func maxDate(date1 time.Time, date2 time.Time) time.Time {
 	return date2
 }
 
-func monthDiff(date1 time.Time, date2 time.Time) int {
-	years := date2.Year() - date1.Year()
-	months := int(date2.Month()) - int(date1.Month())
+func monthsBetween(startDate, endDate time.Time) int {
+	years := endDate.Year() - startDate.Year()
+	months := int(endDate.Month()) - int(startDate.Month())
 	return years*12 + months
 }

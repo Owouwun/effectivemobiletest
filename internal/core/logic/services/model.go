@@ -17,8 +17,8 @@ type Service struct {
 }
 
 type Filters struct {
-	SrvNames  *[]string    `json:"service_name,omitempty" example:"[\"My Service\", \"Someone's Service\"]"`
-	UserIDs   *[]uuid.UUID `json:"user_id,omitempty" example:"[\"123e4567-e89b-12d3-a456-426614174000\"]"`
+	SrvNames  []*string    `json:"service_name,omitempty" example:"[\"My Service\", \"Someone's Service\"]"`
+	UserIDs   []*uuid.UUID `json:"user_id,omitempty" example:"[\"123e4567-e89b-12d3-a456-426614174000\"]"`
 	StartDate time.Time    `json:"start_date" example:"01-2024"`
 	EndDate   time.Time    `json:"end_date" example:"12-2025"`
 }

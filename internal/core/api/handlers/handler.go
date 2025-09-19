@@ -239,21 +239,47 @@ func (h *SubscriptionHandler) DeleteService(c *gin.Context) {
 	c.JSON(http.StatusOK, nil)
 }
 
+type CumulateFiltersRequest struct {
+	ServiceNames []*string    `json:"service_name,omitempty" example:"[\"My Service\", \"Someone's Service\"]"`
+	UserIDs      []*uuid.UUID `json:"user_id,omitempty" example:"[\"123e4567-e89b-12d3-a456-426614174000\"]"`
+	StartDate    string       `json:"start_date" example:"01-2024"`
+	EndDate      string       `json:"end_date" example:"12-2025"`
+}
+
 // CumulateServices godoc
 // @Summary      Cumulate service costs
 // @Description  Calculates the total cost of services based on provided filters for date range, user ID and service name.
 // @Tags         services
 // @Accept       json
 // @Produce      json
-// @Param        filters  body  services.Filters  true  "Filters for cumulation, including date range and optional user ID and service name"
+// @Param        filters  body  services.Filters  true  "Filters for cumulation, including date range and optional users ID and service names"
 // @Success      200      {number}  float64       	 "Successfully calculated the total cost"
 // @Failure      400      {object}  map[string]any   "Invalid request body or filters"
 // @Failure      500      {object}  map[string]any   "Internal server error"
 func (h *SubscriptionHandler) CumulateServices(c *gin.Context) {
-	var filters *services.Filters
-	if err := c.ShouldBindJSON(&filters); err != nil {
+	var filtersReq CumulateFiltersRequest
+	if err := c.ShouldBindJSON(&filtersReq); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
 		return
+	}
+
+	startDate, err := time.Parse(dateLayout, filtersReq.StartDate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start date", "details": err.Error()})
+		return
+	}
+
+	endDate, err := time.Parse(dateLayout, filtersReq.EndDate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start date", "details": err.Error()})
+		return
+	}
+
+	filters := &services.Filters{
+		SrvNames:  filtersReq.ServiceNames,
+		UserIDs:   filtersReq.UserIDs,
+		StartDate: startDate,
+		EndDate:   endDate,
 	}
 
 	sum, err := h.subscriptionService.CumulateServices(c, filters)

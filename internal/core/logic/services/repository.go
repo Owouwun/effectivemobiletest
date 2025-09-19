@@ -53,13 +53,16 @@ func (s *SubscriptionService) CumulateServices(ctx context.Context, filters *Fil
 	}
 
 	sum := 0
-
 	var cumPrice int
 	var start, end time.Time
 	for _, srv := range filteredServices {
 		start = maxDate(filters.StartDate, srv.StartDate)
-		end = minDate(filters.EndDate, *srv.EndDate)
-		cumPrice = monthDiff(end, start) * srv.Price
+		if srv.EndDate != nil {
+			end = minDate(filters.EndDate, *srv.EndDate)
+		} else {
+			end = filters.EndDate
+		}
+		cumPrice = monthsBetween(start, end) * srv.Price
 		if cumPrice > 0 {
 			sum += cumPrice
 		}
