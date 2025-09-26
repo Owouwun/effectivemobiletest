@@ -1,4 +1,4 @@
-package app
+package helpers
 
 import (
 	"context"
@@ -17,9 +17,13 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+const (
+	dbConnectionReadyTimeout = 30 * time.Second
+)
+
 func waitForDBReady(dbConn string) error {
 	logrus.Info("Waiting for database to be ready...")
-	ctx, cancel := context.WithTimeout(context.Background(), dbConnectionTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), dbConnectionReadyTimeout)
 	defer cancel()
 
 	ticker := time.NewTicker(100 * time.Millisecond)
@@ -125,4 +129,15 @@ func runMigrations(dbConn string) error {
 	}
 
 	return nil
+}
+
+func closeDB(gdb *gorm.DB) error {
+	if gdb == nil {
+		return nil
+	}
+	sqlDB, err := gdb.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.Close()
 }
