@@ -256,6 +256,7 @@ type CumulateFiltersRequest struct {
 // @Success      200      {number}  float64       	 "Successfully calculated the total cost"
 // @Failure      400      {object}  map[string]any   "Invalid request body or filters"
 // @Failure      500      {object}  map[string]any   "Internal server error"
+// @Router       /cummulate [get]
 func (h *SubscriptionHandler) CumulateServices(c *gin.Context) {
 	var filtersReq CumulateFiltersRequest
 	if err := c.ShouldBindJSON(&filtersReq); err != nil {
