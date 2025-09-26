@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Owouwun/effectivemobiletest/internal/core/logic/services"
@@ -17,7 +18,7 @@ const dateLayout = "01-2006"
 type SubscriptionService interface {
 	CreateService(ctx context.Context, srv *services.Service) error
 	GetService(ctx context.Context, ID uuid.UUID) (*services.Service, error)
-	GetServices(ctx context.Context) ([]*services.Service, error)
+	GetServices(ctx context.Context, page, size int) ([]*services.Service, int, error)
 	UpdateService(ctx context.Context, srv *services.Service) error
 	DeleteService(ctx context.Context, ID uuid.UUID) error
 	CumulateServices(ctx context.Context, filters *services.Filters) (int, error)
@@ -106,11 +107,6 @@ func (h *SubscriptionHandler) CreateService(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, srv)
-	logrus.WithFields(logrus.Fields{
-		"path":   c.Request.URL.Path,
-		"status": http.StatusCreated,
-		"body":   srv,
-	}).Debug("Success respond")
 }
 
 // GetService godoc
@@ -156,24 +152,33 @@ func (h *SubscriptionHandler) GetService(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, srv)
-	logrus.WithFields(logrus.Fields{
-		"path":   c.Request.URL.Path,
-		"status": http.StatusOK,
-		"body":   srv,
-	}).Debug("Success respond")
 }
 
 // GetServices godoc
 // @Summary      Get all services
-// @Description  Retrieves a list of all service instances.
+// @Description  Retrieves a list of all service instances with pagination.
 // @Tags         services
 // @Accept       json
 // @Produce      json
+// @Param        page    query      int   false  "Page number (starts from 1)"
+// @Param        size    query      int   false  "Number of items per page"
 // @Success      200  {array}  services.Service  "Successfully retrieved the list of services"
+// @Failure      400  {object}  map[string]any   "Invalid pagination parameters"
 // @Failure      500  {object}  map[string]any   "Internal server error"
 // @Router       / [get]
 func (h *SubscriptionHandler) GetServices(c *gin.Context) {
-	srvs, err := h.subscriptionService.GetServices(c)
+	page, errPage := strconv.Atoi(c.DefaultQuery("page", "1"))
+	size, errSize := strconv.Atoi(c.DefaultQuery("size", "25"))
+
+	if errPage != nil || errSize != nil || page <= 0 || size <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid pagination parameters"})
+		logrus.WithFields(logrus.Fields{
+			"path": c.Request.URL.Path,
+		}).Warn("Invalid pagination parameters")
+		return
+	}
+
+	srvs, totalCount, err := h.subscriptionService.GetServices(c, page, size)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get services", "details": err.Error()})
 		logrus.WithFields(logrus.Fields{
@@ -183,12 +188,12 @@ func (h *SubscriptionHandler) GetServices(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, srvs)
-	logrus.WithFields(logrus.Fields{
-		"path":   c.Request.URL.Path,
-		"status": http.StatusOK,
-		"body":   srvs,
-	}).Debug("Success respond")
+	c.JSON(http.StatusOK, gin.H{
+		"services":    srvs,
+		"total_count": totalCount,
+		"page":        page,
+		"size":        size,
+	})
 }
 
 type UpdateRequest struct {
@@ -269,11 +274,6 @@ func (h *SubscriptionHandler) UpdateService(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, updatedSrv)
-	logrus.WithFields(logrus.Fields{
-		"path":   c.Request.URL.Path,
-		"status": http.StatusOK,
-		"body":   updatedSrv,
-	}).Debug("Success respond")
 }
 
 // DeleteService godoc
@@ -318,10 +318,6 @@ func (h *SubscriptionHandler) DeleteService(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, nil)
-	logrus.WithFields(logrus.Fields{
-		"path":   c.Request.URL.Path,
-		"status": http.StatusOK,
-	}).Debug("Success respond")
 }
 
 type CumulateFiltersRequest struct {
@@ -391,9 +387,4 @@ func (h *SubscriptionHandler) CumulateServices(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, sum)
-	logrus.WithFields(logrus.Fields{
-		"path":   c.Request.URL.Path,
-		"status": http.StatusOK,
-		"body":   sum,
-	}).Debug("Success respond")
 }

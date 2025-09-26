@@ -41,12 +41,29 @@ func (r *GormServiceRepository) GetService(ctx context.Context, ID uuid.UUID) (*
 	return serviceEntity.ToLogicService(), nil
 }
 
-func (r *GormServiceRepository) GetServices(ctx context.Context) ([]*services.Service, error) {
+func (r *GormServiceRepository) GetServices(ctx context.Context, page, size int) ([]*services.Service, int, error) {
 	var serviceEntities []*entities.ServiceEntity
+	var totalCount int64
+
+	if err := r.db.WithContext(ctx).Model(&entities.ServiceEntity{}).Count(&totalCount).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if totalCount == 0 {
+		return []*services.Service{}, 0, nil
+	}
+
+	offset := (page - 1) * size
+	if offset < 0 {
+		offset = 0
+	}
+
 	result := r.db.WithContext(ctx).
+		Offset(offset).
+		Limit(size).
 		Find(&serviceEntities)
 	if result.Error != nil {
-		return nil, result.Error
+		return nil, 0, result.Error
 	}
 
 	var logicServices []*services.Service
@@ -54,7 +71,7 @@ func (r *GormServiceRepository) GetServices(ctx context.Context) ([]*services.Se
 		logicServices = append(logicServices, entity.ToLogicService())
 	}
 
-	return logicServices, nil
+	return logicServices, int(totalCount), nil
 }
 
 func (r *GormServiceRepository) UpdateService(ctx context.Context, srv *services.Service) error {

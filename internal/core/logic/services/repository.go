@@ -10,7 +10,7 @@ import (
 type SubscriptionRepository interface {
 	CreateService(ctx context.Context, srv *Service) error
 	GetService(ctx context.Context, ID uuid.UUID) (*Service, error)
-	GetServices(ctx context.Context) ([]*Service, error)
+	GetServices(ctx context.Context, page, size int) ([]*Service, int, error)
 	UpdateService(ctx context.Context, srv *Service) error
 	DeleteService(ctx context.Context, ID uuid.UUID) error
 	FilterServices(ctx context.Context, filters *Filters) ([]*Service, error)
@@ -34,8 +34,8 @@ func (s *SubscriptionService) GetService(ctx context.Context, ID uuid.UUID) (*Se
 	return s.repo.GetService(ctx, ID)
 }
 
-func (s *SubscriptionService) GetServices(ctx context.Context) ([]*Service, error) {
-	return s.repo.GetServices(ctx)
+func (s *SubscriptionService) GetServices(ctx context.Context, page int, size int) ([]*Service, int, error) {
+	return s.repo.GetServices(ctx, page, size)
 }
 
 func (s *SubscriptionService) UpdateService(ctx context.Context, srv *Service) error {
