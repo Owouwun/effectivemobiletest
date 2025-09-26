@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	_ "github.com/Owouwun/effectivemobiletest/cmd/docs"
@@ -11,6 +10,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
+	"github.com/sirupsen/logrus"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -24,14 +24,16 @@ import (
 // @BasePath        /service
 
 func main() {
+	app.ConfigLogging()
+
 	dbConn, err := app.BuildDBConnFromConfig()
 	if err != nil {
-		log.Fatalf("Failed to build DB connection string: %v", err)
+		logrus.Fatalf("Failed to build DB connection string: %v", err)
 	}
 
 	db, err := app.PrepareDB(dbConn)
 	if err != nil {
-		log.Fatalf("Failed to prepare database: %v", err)
+		logrus.Fatalf("Failed to prepare database: %v", err)
 	}
 
 	router := app.PrepareRouter(db)
@@ -40,11 +42,11 @@ func main() {
 	appPort := os.Getenv("APP_PORT")
 	if appPort == "" {
 		appPort = "8080"
-		log.Printf("APP_PORT not set, using default: %s", appPort)
+		logrus.Infof("APP_PORT is not set, using default: %s", appPort)
 	}
 
-	log.Printf("Starting server on :%s", appPort)
+	logrus.Infof("Starting server on :%s", appPort)
 	if err := router.Run(fmt.Sprintf(":%s", appPort)); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+		logrus.Fatalf("Server failed to start: %v", err)
 	}
 }

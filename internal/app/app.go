@@ -2,20 +2,36 @@ package app
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"time"
 
 	"github.com/Owouwun/effectivemobiletest/internal/core/api/handlers"
+	"github.com/Owouwun/effectivemobiletest/internal/core/api/middleware"
 	"github.com/Owouwun/effectivemobiletest/internal/core/logic/services"
 	repository_services "github.com/Owouwun/effectivemobiletest/internal/core/repository/services"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 const (
 	dbConnectionTimeout = 30 * time.Second
 )
+
+func ConfigLogging() {
+	logLevel := os.Getenv("LOG_LEVEL")
+	switch logLevel {
+	case "DEBUG":
+		logrus.SetLevel(logrus.DebugLevel)
+		logrus.SetFormatter(&logrus.TextFormatter{
+			DisableQuote: true,
+		})
+	default:
+		logrus.SetLevel(logrus.InfoLevel)
+	}
+
+	logrus.Infof("Log level: %s", logrus.GetLevel().String())
+}
 
 func BuildDBConnFromConfig() (string, error) {
 	conn := os.Getenv("DATABASE_CONN")
@@ -35,7 +51,7 @@ func BuildDBConnFromConfig() (string, error) {
 }
 
 func PrepareDB(dbConn string) (*gorm.DB, error) {
-	log.Println("Preparing database...")
+	logrus.Info("Preparing database...")
 	if err := waitForDBReady(dbConn); err != nil {
 		return nil, fmt.Errorf("failed to wait for database: %w", err)
 	}
@@ -49,11 +65,21 @@ func PrepareDB(dbConn string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	logrus.Info("Successful database preparing!")
 	return db, nil
 }
 
 func PrepareRouter(db *gorm.DB) *gin.Engine {
+	logrus.Info("Preparing routers...")
+
 	router := gin.Default()
+
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		gin.SetMode(gin.DebugMode)
+		router.Use(middleware.DebugRequestLogger())
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
 	serviceRepo := repository_services.NewServiceRepository(db)
 	subscriptionService := services.NewSubscriptionService(serviceRepo)
@@ -69,5 +95,6 @@ func PrepareRouter(db *gorm.DB) *gin.Engine {
 		apiOrders.GET("/cumulate", subscriptionHandler.CumulateServices)
 	}
 
+	logrus.Info("Successful routers preparing!")
 	return router
 }

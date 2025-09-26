@@ -9,6 +9,7 @@ import (
 	"github.com/Owouwun/effectivemobiletest/internal/core/logic/services"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 const dateLayout = "01-2006"
@@ -57,12 +58,20 @@ func (h *SubscriptionHandler) CreateService(c *gin.Context) {
 	var req *CreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Invalid request body")
 		return
 	}
 
 	startDate, err := time.Parse(dateLayout, req.StartDate)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start date", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("invalid start date")
 		return
 	}
 
@@ -77,6 +86,10 @@ func (h *SubscriptionHandler) CreateService(c *gin.Context) {
 		endDate, err := time.Parse(dateLayout, *req.EndDate)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end date", "details": err.Error()})
+			logrus.WithFields(logrus.Fields{
+				"path":    c.Request.URL.Path,
+				"details": err.Error(),
+			}).Warn("invalid end date")
 			return
 		}
 
@@ -85,10 +98,19 @@ func (h *SubscriptionHandler) CreateService(c *gin.Context) {
 
 	if err := h.subscriptionService.CreateService(c, srv); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to add new service", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("failed to add new service")
 		return
 	}
 
 	c.JSON(http.StatusCreated, srv)
+	logrus.WithFields(logrus.Fields{
+		"path":   c.Request.URL.Path,
+		"status": http.StatusCreated,
+		"body":   srv,
+	}).Debug("Success respond")
 }
 
 // GetService godoc
@@ -106,7 +128,11 @@ func (h *SubscriptionHandler) CreateService(c *gin.Context) {
 func (h *SubscriptionHandler) GetService(c *gin.Context) {
 	ID, err := uuid.Parse(c.Param("ID"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid uuid"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid UUID"})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Invalid UUID")
 		return
 	}
 
@@ -114,14 +140,27 @@ func (h *SubscriptionHandler) GetService(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			logrus.WithFields(logrus.Fields{
+				"path":    c.Request.URL.Path,
+				"details": err.Error(),
+			}).Warn("Service not found")
 			return
 		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get service", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Failed to get service")
 		return
 	}
 
 	c.JSON(http.StatusOK, srv)
+	logrus.WithFields(logrus.Fields{
+		"path":   c.Request.URL.Path,
+		"status": http.StatusOK,
+		"body":   srv,
+	}).Debug("Success respond")
 }
 
 // GetServices godoc
@@ -137,10 +176,19 @@ func (h *SubscriptionHandler) GetServices(c *gin.Context) {
 	srvs, err := h.subscriptionService.GetServices(c)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get services", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Failed to get services")
 		return
 	}
 
 	c.JSON(http.StatusOK, srvs)
+	logrus.WithFields(logrus.Fields{
+		"path":   c.Request.URL.Path,
+		"status": http.StatusOK,
+		"body":   srvs,
+	}).Debug("Success respond")
 }
 
 type UpdateRequest struct {
@@ -168,12 +216,20 @@ func (h *SubscriptionHandler) UpdateService(c *gin.Context) {
 	ID, err := uuid.Parse(c.Param("ID"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid UUID"})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Invalid UUID")
 		return
 	}
 
 	var req UpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Invalid request body")
 		return
 	}
 
@@ -197,14 +253,27 @@ func (h *SubscriptionHandler) UpdateService(c *gin.Context) {
 	if err := h.subscriptionService.UpdateService(c, updatedSrv); err != nil {
 		if errors.Is(err, services.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			logrus.WithFields(logrus.Fields{
+				"path":    c.Request.URL.Path,
+				"details": err.Error(),
+			}).Warn("Service not found")
 			return
 		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update service", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Failed to update service")
 		return
 	}
 
 	c.JSON(http.StatusOK, updatedSrv)
+	logrus.WithFields(logrus.Fields{
+		"path":   c.Request.URL.Path,
+		"status": http.StatusOK,
+		"body":   updatedSrv,
+	}).Debug("Success respond")
 }
 
 // DeleteService godoc
@@ -223,20 +292,36 @@ func (h *SubscriptionHandler) DeleteService(c *gin.Context) {
 	ID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid UUID"})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Invalid UUID")
 		return
 	}
 
 	if err = h.subscriptionService.DeleteService(c, ID); err != nil {
 		if errors.Is(err, services.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			logrus.WithFields(logrus.Fields{
+				"path":    c.Request.URL.Path,
+				"details": err.Error(),
+			}).Warn("Service not found")
 			return
 		}
 
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update service", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Failed to update service")
 		return
 	}
 
 	c.JSON(http.StatusOK, nil)
+	logrus.WithFields(logrus.Fields{
+		"path":   c.Request.URL.Path,
+		"status": http.StatusOK,
+	}).Debug("Success respond")
 }
 
 type CumulateFiltersRequest struct {
@@ -261,18 +346,30 @@ func (h *SubscriptionHandler) CumulateServices(c *gin.Context) {
 	var filtersReq CumulateFiltersRequest
 	if err := c.ShouldBindJSON(&filtersReq); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Invalid request body")
 		return
 	}
 
 	startDate, err := time.Parse(dateLayout, filtersReq.StartDate)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start date", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Invalid start date")
 		return
 	}
 
 	endDate, err := time.Parse(dateLayout, filtersReq.EndDate)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start date", "details": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end date", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Invalid end date")
 		return
 	}
 
@@ -286,8 +383,17 @@ func (h *SubscriptionHandler) CumulateServices(c *gin.Context) {
 	sum, err := h.subscriptionService.CumulateServices(c, filters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to cumulate price", "details": err.Error()})
+		logrus.WithFields(logrus.Fields{
+			"path":    c.Request.URL.Path,
+			"details": err.Error(),
+		}).Warn("Failed to cumulate price")
 		return
 	}
 
 	c.JSON(http.StatusOK, sum)
+	logrus.WithFields(logrus.Fields{
+		"path":   c.Request.URL.Path,
+		"status": http.StatusOK,
+		"body":   sum,
+	}).Debug("Success respond")
 }

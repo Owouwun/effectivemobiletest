@@ -11,13 +11,14 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/sirupsen/logrus"
 	gorm_postgres "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
 func waitForDBReady(dbConn string) error {
-	log.Println("Waiting for database to be ready...")
+	logrus.Info("Waiting for database to be ready...")
 	ctx, cancel := context.WithTimeout(context.Background(), dbConnectionTimeout)
 	defer cancel()
 
@@ -31,7 +32,7 @@ func waitForDBReady(dbConn string) error {
 		case <-ticker.C:
 			db, err := sql.Open("postgres", dbConn)
 			if err != nil {
-				log.Printf("error opening database connection: %v", err)
+				logrus.Debugf("error opening database connection: %v", err)
 				continue
 			}
 			if err := db.Ping(); err == nil {
@@ -44,7 +45,7 @@ func waitForDBReady(dbConn string) error {
 }
 
 func connectToDB(dbConn string) (*gorm.DB, error) {
-	log.Println("Connecting to the PostgreSQL database...")
+	logrus.Info("Connecting to the PostgreSQL database...")
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags),
 		logger.Config{
@@ -60,19 +61,20 @@ func connectToDB(dbConn string) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	log.Println("Successful connection to the database!")
+	logrus.Info("Successful connecting to the database!")
 	return db, nil
 }
 
 func runMigrations(dbConn string) error {
 	migrationsTable := os.Getenv("MIGRATIONS_TABLE")
 	if migrationsTable == "" {
+		logrus.Info("Migration table was not set, use default")
 		migrationsTable = "schema_migrations_effectivemobiletest"
 	}
 
 	wd, _ := os.Getwd()
 	migrationsPath := "file://" + filepath.Join(wd, "migrations")
-	log.Printf("Running database migrations; migrationsPath=%s migrationsTable=%s\n", migrationsPath, migrationsTable)
+	logrus.Infof("Running database migrations; migrationsPath=%s migrationsTable=%s", migrationsPath, migrationsTable)
 
 	sqlDB, err := sql.Open("postgres", dbConn)
 	if err != nil {
@@ -93,34 +95,32 @@ func runMigrations(dbConn string) error {
 	if err != nil {
 		return fmt.Errorf("migrate.NewWithDatabaseInstance failed: %w", err)
 	}
-	defer func() {
-		_, _ = m.Close()
-	}()
+	defer m.Close()
 
 	if err := m.Up(); err != nil {
 		if err == migrate.ErrNoChange {
-			log.Println("Migrations: no change (already up-to-date)")
+			logrus.Info("Migrations: no change (already up-to-date)")
 		} else {
 			return fmt.Errorf("m.Up failed: %w", err)
 		}
 	} else {
-		log.Println("Migrations applied successfully!")
+		logrus.Info("Migrations applied successfully!")
 	}
 
 	if v, dirty, err := m.Version(); err == nil {
-		log.Printf("migration version=%d dirty=%v\n", v, dirty)
+		logrus.Debugf("migration version=%d dirty=%v", v, dirty)
 	} else {
 		rows, err := sqlDB.Query(fmt.Sprintf("SELECT version FROM %s ORDER BY version", migrationsTable))
 		if err == nil {
-			log.Println("Applied migration versions:")
+			logrus.Debug("Applied migration versions:")
 			for rows.Next() {
 				var vv string
 				_ = rows.Scan(&vv)
-				log.Println(" -", vv)
+				logrus.Debug(" -", vv)
 			}
 			rows.Close()
 		} else {
-			log.Printf("can't read %s: %v", migrationsTable, err)
+			logrus.Warnf("can't read %s: %v", migrationsTable, err)
 		}
 	}
 
